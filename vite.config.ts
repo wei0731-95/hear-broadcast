@@ -48,7 +48,10 @@ export default defineConfig(({ mode }) => {
         },
       }),
     ],
-    server: { host: mode === 'https' ? true : undefined },
+    server: {
+      host: mode === 'https' ? true : undefined,
+      allowedHosts: true,
+    },
     worker: { format: 'es' },
   };
 });

@@ -1,5 +1,5 @@
 /**
- * 乘客端（#/rx）：一鍵開始接收 → 字幕看板（依手機語言自動選字幕語言）、月台判斷、緊急畫面、歷史紀錄。
+ * 乘客端（#/ 或 #/rx）：一鍵開始接收 → 字幕看板（依手機語言自動選字幕語言）、月台判斷、緊急畫面、歷史紀錄。
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { WithData, type AppData } from '../../app/data.tsx';
@@ -70,6 +70,7 @@ function Rx({ data }: { data: AppData }) {
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [level, setLevel] = useState<LevelInfo | null>(null);
+  const [volume, setVolume] = useState(0);
   const [locked, setLocked] = useState<ModemConfig | null>(null);
   const [latest, setLatest] = useState<Announcement | null>(null);
   const [flash, setFlash] = useState(0);
@@ -159,6 +160,7 @@ function Rx({ data }: { data: AppData }) {
     const p = new ReceiverPipeline({
       onEvent: (ev) => onEventRef.current(ev),
       onLevel: setLevel,
+      onVolume: setVolume,
       onLock: setLocked,
       onError: (m) => setError(m),
     });
@@ -183,6 +185,7 @@ function Rx({ data }: { data: AppData }) {
     releaseWake.current = null;
     setRunning(false);
     setLevel(null);
+    setVolume(0);
   };
 
   useEffect(
@@ -213,16 +216,33 @@ function Rx({ data }: { data: AppData }) {
     ? `${t.locked} ${locked.f0 / 1000} kHz・${modeName(locked, t)}${locked.f0 === LOW_BAND_F0 ? `（${t.lowBand}）` : ''}`
     : t.scanning;
 
+  // 將麥克風 RMS 轉換為 dBFS（-58 dB 安靜室內 → -18 dB 正常說話）
+  const db = 20 * Math.log10(Math.max(volume, 1e-5));
+  const micNorm = Math.min(1, Math.max(0, (db + 58) / 40));
+  const barMultipliers = [0.55, 0.85, 1.0, 0.78, 0.5];
+
+  const fontLabels: Record<1 | 2 | 3, string> =
+    settings.lang === 'en' ? { 1: 'Small', 2: 'Medium', 3: 'Large' } : { 1: '標準', 2: '放大', 3: '特大' };
+
   return (
     <div lang={LANG_TAGS[settings.lang]}>
-      <h1>{settings.lang === 'en' ? 'Passenger' : '乘客端'}</h1>
-
-      {/* 一鍵啟動卡片：乘客無需任何設定即可直接點擊接收 */}
+      {/* 一鍵啟動區 */}
       {!running ? (
         <div className="card stack">
-          <button className="big primary" onClick={start} disabled={starting} data-testid="start">
+          <button
+            className="big primary"
+            onClick={start}
+            disabled={starting}
+            data-testid="start"
+            style={{ padding: '16px 20px', fontSize: '1.15rem', letterSpacing: '0.05em' }}
+          >
             {starting ? t.starting : t.start}
           </button>
+          <p className="small muted" style={{ margin: 0, textAlign: 'center' }}>
+            {settings.lang === 'en'
+              ? 'Tap once to start receiving station broadcasts automatically.'
+              : '點擊即可自動收聽車站廣播並顯示即時字幕，無需任何設定'}
+          </p>
           {error && (
             <div className="error" role="alert">
               {error}
@@ -231,11 +251,40 @@ function Rx({ data }: { data: AppData }) {
         </div>
       ) : (
         <div className="card stack">
-          <div className="row" style={{ justifyContent: 'space-between' }}>
-            <span className="ok">● {t.listening}</span>
+          <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="row" style={{ alignItems: 'center', gap: 10 }}>
+              <span className="ok">● {t.listening}</span>
+              {/* 5 格環境音浪指示條（一般說話與環境音即可即時跳動） */}
+              <div
+                aria-hidden="true"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 3,
+                  height: 18,
+                  padding: '0 4px',
+                }}
+              >
+                {barMultipliers.map((mult, idx) => {
+                  const h = Math.round(4 + micNorm * mult * 14);
+                  return (
+                    <span
+                      key={idx}
+                      style={{
+                        width: 3,
+                        height: `${h}px`,
+                        borderRadius: 999,
+                        background: micNorm > 0.08 ? '#34d399' : '#475569',
+                        transition: 'height 0.08s ease-out, background-color 0.15s ease',
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
             <button onClick={stop}>{t.stop}</button>
           </div>
-          {/* 月台判斷與收訊狀態固定顯示在主畫面（需求第 4 節）；工程數據在「進階」 */}
+
           <div className="status" aria-label={t.statusLabel} data-testid="status">
             <span data-testid="platform-status">
               <b>
@@ -269,12 +318,19 @@ function Rx({ data }: { data: AppData }) {
         </p>
       )}
 
+      {/* 核心字幕看板 */}
       <section
         key={flash}
         className={`board fs-${settings.fontSize} ${flash ? 'flash' : ''}`}
         aria-live="polite"
         aria-atomic="true"
         aria-label="字幕看板"
+        style={{
+          minHeight: 168,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+        }}
       >
         {latest ? (
           (() => {
@@ -292,39 +348,67 @@ function Rx({ data }: { data: AppData }) {
               </>
             );
           })()
-        ) : (
+        ) : running ? (
           <div className="text">{t.waiting}</div>
+        ) : (
+          <div className="text" style={{ color: '#64748b', fontSize: '1.15rem', fontWeight: 500 }}>
+            {settings.lang === 'en'
+              ? 'Tap "Start" above to receive subtitles'
+              : '請點擊上方「開始接收」啟動字幕'}
+          </div>
         )}
       </section>
 
-      {/* 常用顯示設定（語言與字級） */}
-      <div className="card stack" style={{ marginTop: 14 }}>
-        <div role="group" aria-label={t.language} className="row">
-          <strong>{t.language}：</strong>
+      {/* 手機友善 3×2 對齊語言網格 ＋ 字級控制列 */}
+      <div className="card stack" style={{ marginTop: 14, padding: '12px 14px', gap: 10 }}>
+        <div
+          role="group"
+          aria-label={t.language}
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: 6,
+          }}
+        >
           {LANGS.map((l) => (
             <button
               key={l}
               aria-pressed={settings.lang === l}
               onClick={() => update({ lang: l })}
               lang={LANG_TAGS[l]}
+              style={{ width: '100%', textAlign: 'center', padding: '8px 4px' }}
             >
               {LANG_LABELS[l]}
             </button>
           ))}
         </div>
-        <div role="group" aria-label={t.fontSize} className="row">
-          <strong>{t.fontSize}：</strong>
-          {([1, 2, 3] as const).map((s) => (
-            <button key={s} aria-pressed={settings.fontSize === s} onClick={() => update({ fontSize: s })}>
-              {'A'.repeat(s)}
-            </button>
-          ))}
+        <div
+          role="group"
+          aria-label={t.fontSize}
+          className="row"
+          style={{ justifyContent: 'space-between', alignItems: 'center' }}
+        >
+          <span className="small muted">{t.fontSize}</span>
+          <div className="row" style={{ gap: 6 }}>
+            {([1, 2, 3] as const).map((s) => (
+              <button
+                key={s}
+                aria-pressed={settings.fontSize === s}
+                onClick={() => update({ fontSize: s })}
+                style={{ minWidth: 58 }}
+              >
+                {fontLabels[s]}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* 折疊式進階設定與工程數據：讓一般乘客的畫面保持簡潔 */}
+      {/* 折疊式進階設定 */}
       <details className="card" style={{ marginTop: 14 }}>
-        <summary style={{ cursor: 'pointer', fontWeight: 700 }}>{t.advanced}</summary>
+        <summary style={{ cursor: 'pointer', fontWeight: 700 }}>
+          {settings.lang === 'en' ? 'Advanced Settings' : '進階設定'}
+        </summary>
         <div className="stack" style={{ marginTop: 12 }}>
           {running && (
             <div className="status">
@@ -372,7 +456,11 @@ function Rx({ data }: { data: AppData }) {
       <section className="card" aria-label={t.history}>
         <h2>{t.history}</h2>
         {view.history.length === 0 ? (
-          <p className="muted">—</p>
+          <p className="small muted" style={{ margin: 0 }}>
+            {settings.lang === 'en'
+              ? 'No broadcasts received yet.'
+              : '尚無廣播紀錄，收到廣播後將自動保留於此'}
+          </p>
         ) : (
           <ol className="log" reversed>
             {view.history.map((a) => {

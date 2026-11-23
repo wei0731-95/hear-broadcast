@@ -1,7 +1,7 @@
 /**
  * 接收端音訊管線（主執行緒）：
  *   麥克風 → AudioWorklet 擷取（不支援時退回 ScriptProcessor）→ DSP Web Worker 解調 → 回呼。
- * 主執行緒只負責轉送樣本，不做任何 Goertzel／FFT。
+ * 主執行緒只負責轉送樣本與計算環境音量，不做任何 Goertzel／FFT。
  */
 import { openMicrophone } from '../platform/index.ts';
 import type { RxOptions } from '../modem/config.ts';
@@ -21,6 +21,7 @@ export interface PipelineCallbacks {
   onEvent(e: WorkerMessage | WorkerFailure): void;
   onLevel?(l: LevelInfo): void;
   onLock?(cfg: LevelInfo['locked']): void;
+  onVolume?(rms: number): void;
   onError?(message: string): void;
 }
 
@@ -55,8 +56,21 @@ export class ReceiverPipeline {
     worker.onerror = (e) => this.cb.onError?.(`DSP Worker 錯誤：${e.message}`);
     this.send({ type: 'init', fs: ctx.sampleRate, mode, opts });
     this.source = ctx.createMediaStreamSource(this.stream);
-    const forward = (data: Float32Array) =>
+
+    let lastVolAt = 0;
+    const forward = (data: Float32Array) => {
+      if (this.cb.onVolume && data.length > 0) {
+        const now = performance.now();
+        if (now - lastVolAt >= 70) {
+          lastVolAt = now;
+          let sum = 0;
+          for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
+          this.cb.onVolume(Math.sqrt(sum / data.length));
+        }
+      }
       this.worker?.postMessage({ type: 'samples', data } satisfies ToWorker, [data.buffer]);
+    };
+
     if (ctx.audioWorklet) {
       await ctx.audioWorklet.addModule(workletUrl);
       const node = new AudioWorkletNode(ctx, 'hb-capture', { numberOfInputs: 1, numberOfOutputs: 0 });
