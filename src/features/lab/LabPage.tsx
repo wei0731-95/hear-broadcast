@@ -3,6 +3,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { WithData, type AppData } from '../../app/data.tsx';
+import { PageHead } from '../../app/ui.tsx';
 import { ReceiverPipeline } from '../../audio/receiverPipeline.ts';
 import type { LevelInfo } from '../../audio/protocol.ts';
 import { mixInto, sweep, tone, type Route } from '../../audio/signals.ts';
@@ -209,7 +210,7 @@ function Lab({ data }: { data: AppData }) {
 
   return (
     <>
-      <h1>硬體診斷</h1>
+      <PageHead title="硬體診斷" sub="用掃頻確認這組喇叭和手機能用哪些高頻頻段。" art="chouonpa_koumori" />
       <div className="grid two">
         <section className="card stack" aria-label="發送端">
           <h2>發送端（筆電）</h2>

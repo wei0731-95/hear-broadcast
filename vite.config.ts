@@ -21,8 +21,8 @@ export default defineConfig(({ mode }) => {
           short_name: '聽見廣播',
           description: '用車站喇叭送出人耳聽不到的高頻聲波，手機即時顯示多語字幕',
           lang: 'zh-Hant-TW',
-          theme_color: '#0b3d91',
-          background_color: '#0b1220',
+          theme_color: '#fbf6ec',
+          background_color: '#fbf6ec',
           display: 'standalone',
           start_url: './#/rx',
           scope: './',
@@ -43,6 +43,12 @@ export default defineConfig(({ mode }) => {
                 url.pathname.endsWith('/data/stations.json'),
               handler: 'StaleWhileRevalidate',
               options: { cacheName: 'hb-data' },
+            },
+            {
+              // 圓體字型依用到的字分片下載，用過的分片留在快取，離線時其餘字退回系統字型
+              urlPattern: ({ url }) => /huninn-.*\.woff2?$/.test(url.pathname),
+              handler: 'CacheFirst',
+              options: { cacheName: 'hb-fonts', expiration: { maxEntries: 120 } },
             },
           ],
         },

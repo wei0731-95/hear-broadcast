@@ -36,16 +36,19 @@ export default function App() {
         跳到主要內容
       </a>
       <header className="top">
-        <a className="logo" href="#/">
-          聽見廣播
-        </a>
-        <nav aria-label="主選單">
-          {NAV.map(([path, label]) => (
-            <a key={path} href={`#${path}`} aria-current={route === path ? 'page' : undefined}>
-              {label}
-            </a>
-          ))}
-        </nav>
+        <div className="inner">
+          <a className="logo" href="#/">
+            <img src={`${import.meta.env.BASE_URL}icon.svg`} alt="" />
+            聽見廣播
+          </a>
+          <nav aria-label="主選單">
+            {NAV.map(([path, label]) => (
+              <a key={path} href={`#${path}`} aria-current={route === path ? 'page' : undefined}>
+                {label}
+              </a>
+            ))}
+          </nav>
+        </div>
       </header>
       <main id="content">
         <Suspense fallback={<p role="status">載入中…</p>}>{page}</Suspense>

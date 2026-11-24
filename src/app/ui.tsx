@@ -81,3 +81,19 @@ export const clock = (ms: number): string =>
     minute: '2-digit',
     second: '2-digit',
   });
+
+/** public/illust 底下的插圖（いらすとや） */
+export const illust = (name: string): string => `${import.meta.env.BASE_URL}illust/${name}.png`;
+
+/** 頁首：圓體標題、說明與右側插圖 */
+export function PageHead({ title, sub, art }: { title: ReactNode; sub?: ReactNode; art?: string }) {
+  return (
+    <div className="page-head">
+      <div className="words">
+        <h1>{title}</h1>
+        {sub && <p>{sub}</p>}
+      </div>
+      {art && <img src={illust(art)} alt="" />}
+    </div>
+  );
+}

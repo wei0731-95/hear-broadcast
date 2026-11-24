@@ -43,6 +43,8 @@ const zh = {
   listening: '正在接收月台廣播',
   statusLabel: '接收狀態',
   advanced: '進階設定與工程數據（頻段、月台判斷方式、同步分數）',
+  startHint: '按下後允許使用麥克風，手機收到車站廣播的高頻訊號就會顯示字幕。不用網路、不用安裝。',
+  latest: '最新廣播',
 } as const;
 
 type Dict = {
@@ -90,6 +92,9 @@ const en: Dict = {
   listening: 'Listening for station announcements',
   statusLabel: 'Receiver status',
   advanced: 'Advanced (band, platform detection, sync score)',
+  startHint:
+    'Allow the microphone and captions appear when your phone picks up the station signal. No internet or install needed.',
+  latest: 'Latest',
 };
 
 export type UiDict = Dict;

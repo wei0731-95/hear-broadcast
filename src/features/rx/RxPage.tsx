@@ -3,7 +3,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { WithData, type AppData } from '../../app/data.tsx';
-import { clock } from '../../app/ui.tsx';
+import { PageHead, clock, illust } from '../../app/ui.tsx';
 import { ReceiverPipeline } from '../../audio/receiverPipeline.ts';
 import type { LevelInfo, RxMode, WorkerFailure, WorkerMessage } from '../../audio/protocol.ts';
 import { LANG_LABELS, LANG_TAGS, LANGS, type Lang } from '../../data/schema.ts';
@@ -214,15 +214,19 @@ function Rx({ data }: { data: AppData }) {
     : t.scanning;
 
   return (
-    <div lang={LANG_TAGS[settings.lang]}>
-      <h1>{settings.lang === 'en' ? 'Passenger' : '乘客端'}</h1>
+    <div className="rx" lang={LANG_TAGS[settings.lang]}>
+      <PageHead title={settings.lang === 'en' ? 'Passenger' : '乘客端'} />
 
       {/* 一鍵啟動卡片：乘客無需任何設定即可直接點擊接收 */}
       {!running ? (
         <div className="card stack">
-          <button className="big primary" onClick={start} disabled={starting} data-testid="start">
-            {starting ? t.starting : t.start}
-          </button>
+          <div className="rx-start">
+            <p>{t.startHint}</p>
+            <img src={illust('mimi_sumasu_man2')} alt="" />
+            <button className="big primary" onClick={start} disabled={starting} data-testid="start">
+              {starting ? t.starting : t.start}
+            </button>
+          </div>
           {error && (
             <div className="error" role="alert">
               {error}
@@ -232,7 +236,7 @@ function Rx({ data }: { data: AppData }) {
       ) : (
         <div className="card stack">
           <div className="row" style={{ justifyContent: 'space-between' }}>
-            <span className="ok">● {t.listening}</span>
+            <span className="live">{t.listening}</span>
             <button onClick={stop}>{t.stop}</button>
           </div>
           {/* 月台判斷與收訊狀態固定顯示在主畫面（需求第 4 節）；工程數據在「進階」 */}
@@ -279,21 +283,36 @@ function Rx({ data }: { data: AppData }) {
         {latest ? (
           (() => {
             const tr = render(latest);
+            const p = latest.msg.platform;
             return (
               <>
-                <div className="text" data-testid="board-text">
-                  {tr.text}
+                <div className="bar">
+                  <span className="plat">{p === 0 ? t.allStation : <b>{p}</b>}</span>
+                  <span className="label">{p === 0 ? t.latest : `${t.platform}・${t.latest}`}</span>
+                  <time>{clock(latest.at)}</time>
                 </div>
-                <div className="meta">
-                  {clock(latest.at)}・{platformLabel(latest.msg.platform)}・{t.fixed(latest.meta.fixed)}
-                  {latest.meta.combined ? `・${t.combined}` : ''}
-                  {tr.needsReview ? `・${t.needsReview}` : ''}
+                <div className="body">
+                  <div className="text" data-testid="board-text">
+                    {tr.text}
+                  </div>
+                  <div className="meta">
+                    {platformLabel(p)}・{t.fixed(latest.meta.fixed)}
+                    {latest.meta.combined ? `・${t.combined}` : ''}
+                    {tr.needsReview ? `・${t.needsReview}` : ''}
+                  </div>
                 </div>
               </>
             );
           })()
         ) : (
-          <div className="text">{t.waiting}</div>
+          <>
+            <div className="bar">
+              <span className="label">{t.latest}</span>
+            </div>
+            <div className="body">
+              <div className="text idle">{t.waiting.replace(/…$/, '')}</div>
+            </div>
+          </>
         )}
       </section>
 

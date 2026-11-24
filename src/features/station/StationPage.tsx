@@ -3,7 +3,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { WithData, type AppData } from '../../app/data.tsx';
-import { ConfirmDialog, clock, useConfirm } from '../../app/ui.tsx';
+import { ConfirmDialog, PageHead, clock, useConfirm } from '../../app/ui.tsx';
 import {
   BroadcastPlayer,
   renderBroadcastWav,
@@ -233,7 +233,11 @@ function StationConsole({ data }: { data: AppData }) {
 
   return (
     <>
-      <h1>站務端</h1>
+      <PageHead
+        title="站務端"
+        sub="選好月台與模板，按下播出：叮咚聲、高頻訊號和語音廣播會依序送出。"
+        art="job_ekiin_man"
+      />
       <ConfirmDialog req={confirmReq} />
       {s.f0 === LOW_BAND_F0 && (
         <p className="warn" role="status">

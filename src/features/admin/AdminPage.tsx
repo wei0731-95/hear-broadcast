@@ -3,7 +3,7 @@
  * 正式發布：把匯出的 template-pack.json、stations.json 放進 public/data/ 後重新部署。
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ConfirmDialog, useConfirm } from '../../app/ui.tsx';
+import { ConfirmDialog, PageHead, useConfirm } from '../../app/ui.tsx';
 import { renderTemplate, validatePack, type TemplateIssue } from '../../data/render.ts';
 import { LocalRepository, exportBundle, importBundle } from '../../data/repository.ts';
 import {
@@ -176,7 +176,11 @@ export default function AdminPage() {
 
   return (
     <>
-      <h1>模板管理</h1>
+      <PageHead
+        title="模板管理"
+        sub="編輯廣播模板、六種語言的翻譯與車站設定。"
+        art="computer_programming_man"
+      />
       <ConfirmDialog req={confirmReq} />
       <div className="card stack">
         <p className="small">
